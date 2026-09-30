@@ -1,0 +1,209 @@
+# ParcelPulse local stack.
+#
+#   docker compose up --build
+#
+# Builds the services from the component directories next to this one in the
+# ParcelPulse engineering repository:
+#
+#   api/  worker/  web/  infra/
+#
+# Defaults work without a .env file; copy .env.example to .env to override them.
+# Every credential below is a local-development default and must not be reused
+# anywhere else.
+name: parcelpulse
+
+x-database-url: &database-url
+  postgresql+psycopg://${POSTGRES_USER:-parcelpulse}:${POSTGRES_PASSWORD:-parcelpulse}@postgres:5432/${POSTGRES_DB:-parcelpulse}
+
+x-webhook-secret: &webhook-secret
+  ${WEBHOOK_SIGNING_SECRET:-local-development-only-webhook-secret}
+
+services:
+  postgres:
+    image: postgres:17.11-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-parcelpulse}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-parcelpulse}
+      POSTGRES_DB: ${POSTGRES_DB:-parcelpulse}
+    ports:
+      - "${POSTGRES_HOST_PORT:-15432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-parcelpulse} -d ${POSTGRES_DB:-parcelpulse}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7.4.11-alpine
+    # Append-only file: queued notification messages survive a Redis restart.
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_HOST_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # Development mail sink: accepts any SMTP message and shows it in a web UI.
+  # Nothing leaves the machine.
+  mailpit:
+    image: axllent/mailpit:v1.31.3
+    ports:
+      - "${MAILPIT_SMTP_HOST_PORT:-1025}:1025"
+      - "${MAILPIT_UI_HOST_PORT:-8025}:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # One-shot: brings the database schema to the latest Alembic revision, then exits.
+  api-migrate:
+    build:
+      context: ${API_REPO:-../api}
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      DATABASE_URL: *database-url
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: ${API_REPO:-../api}
+    environment:
+      ENVIRONMENT: development
+      LOG_FORMAT: json
+      DATABASE_URL: *database-url
+      REDIS_URL: redis://redis:6379/0
+      WEBHOOK_SIGNING_SECRET: *webhook-secret
+      # /dev endpoints are for local work only; the API refuses them in production.
+      ENABLE_DEV_ENDPOINTS: "true"
+    ports:
+      - "${API_HOST_PORT:-8000}:8000"
+    depends_on:
+      api-migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # Readiness, not just liveness: healthy means PostgreSQL and Redis answer.
+      test:
+        - CMD
+        - python
+        - -c
+        - "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=3).status == 200 else 1)"
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ${WORKER_REPO:-../worker}
+    environment: &worker-environment
+      LOG_FORMAT: json
+      DATABASE_URL: *database-url
+      REDIS_URL: redis://redis:6379/0
+      EMAIL_PROVIDER: smtp
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      WEB_BASE_URL: http://localhost:${WEB_HOST_PORT:-3000}
+    depends_on: &worker-depends-on
+      api-migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      mailpit:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Same build as the worker: re-publishes lost queue messages and releases
+  # notifications abandoned by a worker that died mid-send.
+  worker-sweeper:
+    build:
+      context: ${WORKER_REPO:-../worker}
+    command: ["python", "-m", "parcelpulse_worker.sweeper"]
+    environment: *worker-environment
+    depends_on: *worker-depends-on
+    restart: unless-stopped
+
+  carrier-simulator:
+    build:
+      context: ./carrier-simulator
+    environment:
+      WEBHOOK_URL: http://api:8000/webhooks/carrier
+      WEBHOOK_SIGNING_SECRET: *webhook-secret
+      PARCELPULSE_API_URL: http://api:8000
+      SIMULATOR_URL: http://localhost:8100
+    ports:
+      - "${SIMULATOR_HOST_PORT:-8100}:8100"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ${WEB_REPO:-../web}
+    environment:
+      # Read by the Next.js server at request time; the browser never sees these.
+      API_BASE_URL: http://api:8000
+      SIMULATOR_BASE_URL: http://carrier-simulator:8100
+      # /dev drives the carrier simulator; a local-development convenience only.
+      ENABLE_DEV_TOOLS: "true"
+      MAIL_SINK_URL: http://localhost:${MAILPIT_UI_HOST_PORT:-8025}
+    ports:
+      - "${WEB_HOST_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # --- Tools (not started by "up"; run on demand) ------------------------------
+  #
+  #   docker compose run --rm smoke
+  #   docker compose run --rm loadtest --shipments 100 --concurrency 16
+  #
+  # They run inside the Compose network, so they need no Python on the host and
+  # their timings are not affected by the host's port forwarding.
+  smoke:
+    profiles: ["tools"]
+    image: python:3.12-slim
+    volumes:
+      - ./tests/smoke:/smoke:ro
+    entrypoint:
+      - python
+      - /smoke/smoke_test.py
+      - --api-url=http://api:8000
+      - --web-url=http://web:3000
+      - --simulator-url=http://carrier-simulator:8100
+      - --mail-url=http://mailpit:8025
+    depends_on:
+      web:
+        condition: service_healthy
+      carrier-simulator:
+        condition: service_healthy
+
+  loadtest:
+    profiles: ["tools"]
+    image: python:3.12-slim
+    volumes:
+      - ./loadtest:/loadtest:ro
+    environment:
+      WEBHOOK_SIGNING_SECRET: *webhook-secret
+    entrypoint: ["python", "/loadtest/webhook_load.py", "--api-url=http://api:8000"]
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  redis-data:

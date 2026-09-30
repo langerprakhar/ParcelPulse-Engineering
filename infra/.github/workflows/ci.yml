@@ -1,0 +1,140 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  compose:
+    name: Compose configuration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: python -m pip install -r requirements-dev.txt
+      - name: docker compose config
+        run: docker compose --env-file /dev/null config --quiet
+      - name: Static checks on the Compose file
+        run: python -m pytest tests/test_compose.py --junitxml=reports/compose.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: junit-compose
+          path: reports/compose.xml
+
+  scripts:
+    name: Scripts (lint and syntax)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: python -m pip install -r requirements-dev.txt
+      - name: ruff check
+        run: ruff check --output-format=github tests loadtest
+      - name: ruff format
+        run: ruff format --check tests loadtest
+      - name: Smoke and load test scripts compile and show their help
+        run: |
+          python tests/smoke/smoke_test.py --help
+          python loadtest/webhook_load.py --help
+      - name: PowerShell scripts parse
+        shell: pwsh
+        run: |
+          $failed = $false
+          Get-ChildItem -Recurse -Filter *.ps1 | ForEach-Object {
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$null, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+              $failed = $true
+              $errors | ForEach-Object { Write-Host "::error file=$($_.Extent.File),line=$($_.Extent.StartLineNumber)::$($_.Message)" }
+            }
+          }
+          if ($failed) { exit 1 }
+
+  simulator-lint:
+    name: Carrier simulator (lint and type check)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: carrier-simulator
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: carrier-simulator/constraints.txt
+      - run: python -m pip install --constraint constraints.txt -e ".[dev]"
+      - run: ruff check --output-format=github .
+      - run: ruff format --check .
+      - run: mypy
+
+  # One job per behaviour area, so a failing or missing suite is visible by name.
+  simulator-tests:
+    name: Carrier simulator tests (${{ matrix.suite }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: webhook-delivery-and-retries
+            path: tests/test_sender.py
+          - suite: carrier-behaviours
+            path: tests/test_simulator.py
+          - suite: http-api-and-cli
+            path: tests/test_app.py
+    defaults:
+      run:
+        working-directory: carrier-simulator
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: carrier-simulator/constraints.txt
+      - run: python -m pip install --constraint constraints.txt -e ".[dev]"
+      - run: pytest ${{ matrix.path }} --junitxml=reports/${{ matrix.suite }}.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: junit-simulator-${{ matrix.suite }}
+          path: carrier-simulator/reports/${{ matrix.suite }}.xml
+
+  simulator-image:
+    name: Carrier simulator image build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --tag parcelpulse-carrier-simulator:ci carrier-simulator
+      - name: Image starts and reports liveness
+        run: |
+          docker run --detach --name simulator --publish 8100:8100 \
+            --env WEBHOOK_SIGNING_SECRET=ci-only-signing-secret-000000 \
+            parcelpulse-carrier-simulator:ci
+          for attempt in $(seq 1 20); do
+            if curl --fail --silent http://localhost:8100/health; then exit 0; fi
+            sleep 1
+          done
+          docker logs simulator
+          exit 1
+
+# The full-stack smoke test (tests/smoke/smoke_test.py) needs all four
+# repositories checked out side by side and is not run here yet. Until it is,
+# run it locally before merging changes that affect how the services work
+# together: docker compose up -d --build --wait && docker compose run --rm smoke
