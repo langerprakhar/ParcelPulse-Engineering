@@ -1,0 +1,35 @@
+# Disposable dependencies for running this repository's integration tests locally.
+# The full ParcelPulse stack lives in the parcelpulse-infra repository.
+#
+#   docker compose -f docker-compose.dev.yml up -d --wait   # PostgreSQL :25432, Redis :26379
+#   pytest
+#   docker compose -f docker-compose.dev.yml down
+name: parcelpulse-api-dev
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: parcelpulse
+      POSTGRES_PASSWORD: parcelpulse
+      POSTGRES_DB: parcelpulse_test
+    ports:
+      - "${TEST_POSTGRES_PORT:-25432}:5432"
+    # Test data never needs to survive a restart.
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U parcelpulse -d parcelpulse_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${TEST_REDIS_PORT:-26379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
