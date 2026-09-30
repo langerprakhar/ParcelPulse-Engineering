@@ -25,7 +25,7 @@ from tests.conftest import make_settings
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_TEST_DATABASE_URL = (
-    "postgresql+psycopg://parcelpulse:parcelpulse@localhost:55432/parcelpulse_test"
+    "postgresql+psycopg://parcelpulse:parcelpulse@localhost:25432/parcelpulse_test"
 )
 
 

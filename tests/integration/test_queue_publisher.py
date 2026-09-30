@@ -10,7 +10,7 @@ from dramatiq.brokers.redis import RedisBroker
 
 from parcelpulse_api.queue import DramatiqNotificationPublisher
 
-DEFAULT_TEST_REDIS_URL = "redis://localhost:56379/15"
+DEFAULT_TEST_REDIS_URL = "redis://localhost:26379/15"
 
 
 @pytest.fixture

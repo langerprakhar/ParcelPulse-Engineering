@@ -44,7 +44,7 @@ rebuild the schema from zero with Alembic at the start of every run and empty
 all tables before each test.
 
 ```powershell
-docker compose -f docker-compose.dev.yml up -d --wait   # PostgreSQL on localhost:55432
+docker compose -f docker-compose.dev.yml up -d --wait   # PostgreSQL on localhost:25432
 pytest tests/unit
 pytest tests/integration
 docker compose -f docker-compose.dev.yml down
