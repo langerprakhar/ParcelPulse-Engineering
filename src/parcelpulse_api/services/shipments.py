@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from parcelpulse_api.domain.status import ShipmentStatus
 from parcelpulse_api.errors import AppError, ConflictError, NotFoundError
-from parcelpulse_api.models import Shipment
+from parcelpulse_api.models import Shipment, TrackingEvent
 
 
 class ShipmentNotFoundError(NotFoundError):
@@ -99,6 +99,34 @@ def list_shipments(
     items = (
         session.execute(
             query.order_by(Shipment.created_at.desc(), Shipment.id).limit(limit).offset(offset)
+        )
+        .scalars()
+        .all()
+    )
+    return list(items), total
+
+
+def list_events(
+    session: Session, shipment_id: uuid.UUID, *, limit: int, offset: int, newest_first: bool = False
+) -> tuple[list[TrackingEvent], int]:
+    """The shipment timeline, ordered by carrier event time (never by arrival)."""
+    get_shipment(session, shipment_id)
+
+    total = session.execute(
+        select(func.count())
+        .select_from(TrackingEvent)
+        .where(TrackingEvent.shipment_id == shipment_id)
+    ).scalar_one()
+
+    # received_at and id only break ties between events with the same event_at.
+    ordering = (TrackingEvent.event_at, TrackingEvent.received_at, TrackingEvent.id)
+    items = (
+        session.execute(
+            select(TrackingEvent)
+            .where(TrackingEvent.shipment_id == shipment_id)
+            .order_by(*(column.desc() if newest_first else column.asc() for column in ordering))
+            .limit(limit)
+            .offset(offset)
         )
         .scalars()
         .all()

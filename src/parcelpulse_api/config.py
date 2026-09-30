@@ -3,8 +3,10 @@
 from functools import lru_cache
 from typing import Annotated, Literal, Self
 
-from pydantic import field_validator, model_validator
+from pydantic import SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+
+MIN_SIGNING_SECRET_LENGTH = 16
 
 
 class Settings(BaseSettings):
@@ -21,6 +23,15 @@ class Settings(BaseSettings):
     # Comma-separated carrier codes that shipments may be registered for.
     supported_carriers: Annotated[list[str], NoDecode] = ["simcarrier"]
 
+    # Carrier webhook authentication (see parcelpulse_api.security).
+    webhook_signature_required: bool = True
+    webhook_signing_secret: SecretStr | None = None
+    webhook_signature_tolerance_seconds: int = 300
+    webhook_max_body_bytes: int = 65536
+    # Reject events dated further in the future than this; a wrong carrier clock
+    # must not be able to pin a shipment's status.
+    webhook_max_future_skew_seconds: int = 3600
+
     # Development/debug endpoints under /dev. Never available in production.
     enable_dev_endpoints: bool = False
 
@@ -32,9 +43,25 @@ class Settings(BaseSettings):
         return value
 
     @model_validator(mode="after")
+    def _validate_webhook_signing(self) -> Self:
+        if not self.webhook_signature_required:
+            return self
+        secret = self.webhook_signing_secret
+        if secret is None or len(secret.get_secret_value()) < MIN_SIGNING_SECRET_LENGTH:
+            raise ValueError(
+                "WEBHOOK_SIGNING_SECRET must be set to at least "
+                f"{MIN_SIGNING_SECRET_LENGTH} characters unless WEBHOOK_SIGNATURE_REQUIRED=false"
+            )
+        return self
+
+    @model_validator(mode="after")
     def _enforce_production_rules(self) -> Self:
-        if self.environment == "production" and self.enable_dev_endpoints:
+        if self.environment != "production":
+            return self
+        if self.enable_dev_endpoints:
             raise ValueError("ENABLE_DEV_ENDPOINTS must not be set when ENVIRONMENT=production")
+        if not self.webhook_signature_required:
+            raise ValueError("WEBHOOK_SIGNATURE_REQUIRED must be true when ENVIRONMENT=production")
         return self
 
     @property

@@ -1,7 +1,7 @@
 """Shipment registration and lookup endpoints."""
 
 import uuid
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Path, Query, Request, Response
 from sqlalchemy.orm import Session
@@ -15,6 +15,7 @@ from parcelpulse_api.schemas import (
     Page,
     ShipmentCreate,
     ShipmentOut,
+    TrackingEventOut,
     TrackingNumber,
 )
 from parcelpulse_api.services import shipments as shipment_service
@@ -93,3 +94,33 @@ def get_shipment_by_tracking_number(
 @router.get("/shipments/{shipment_id}", response_model=ShipmentOut, summary="Get a shipment")
 def get_shipment(shipment_id: uuid.UUID, session: SessionDep) -> ShipmentOut:
     return ShipmentOut.model_validate(shipment_service.get_shipment(session, shipment_id))
+
+
+@router.get(
+    "/shipments/{shipment_id}/events",
+    response_model=Page[TrackingEventOut],
+    summary="Get a shipment's timeline",
+)
+def list_shipment_events(
+    shipment_id: uuid.UUID,
+    session: SessionDep,
+    limit: Limit = 50,
+    offset: Offset = 0,
+    order: Annotated[
+        Literal["asc", "desc"], Query(description="Sort by carrier event time")
+    ] = "asc",
+) -> Page[TrackingEventOut]:
+    """Tracking events ordered by `event_at`, the time reported by the carrier.
+
+    `received_at` records when ParcelPulse learned about each event, and
+    `arrived_out_of_order` marks events that were delivered after a later one.
+    """
+    items, total = shipment_service.list_events(
+        session, shipment_id, limit=limit, offset=offset, newest_first=order == "desc"
+    )
+    return Page[TrackingEventOut](
+        items=[TrackingEventOut.model_validate(item) for item in items],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )

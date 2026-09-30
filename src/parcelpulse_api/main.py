@@ -14,7 +14,7 @@ from parcelpulse_api.db import create_db_engine, create_session_factory
 from parcelpulse_api.errors import install_error_handlers
 from parcelpulse_api.logging_config import configure_logging
 from parcelpulse_api.middleware import RequestContextMiddleware
-from parcelpulse_api.routers import health, shipments
+from parcelpulse_api.routers import health, shipments, webhooks
 
 
 @asynccontextmanager
@@ -45,4 +45,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     install_error_handlers(app)
     app.include_router(health.router)
     app.include_router(shipments.router)
+    app.include_router(webhooks.router)
     return app

@@ -2,11 +2,19 @@
 
 import uuid
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, StringConstraints
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    StringConstraints,
+)
 
-from parcelpulse_api.domain.status import ShipmentStatus
+from parcelpulse_api.domain.status import EventType, ShipmentStatus
+from parcelpulse_api.models import ReceiptResult
 
 TRACKING_NUMBER_PATTERN = r"^[A-Z0-9]{6,40}$"
 CARRIER_CODE_PATTERN = r"^[a-z0-9][a-z0-9_-]{1,31}$"
@@ -68,3 +76,67 @@ class CarrierOut(BaseModel):
 
 class CarrierList(BaseModel):
     items: list[CarrierOut]
+
+
+# --- Carrier webhooks -------------------------------------------------------
+
+ShortText = Annotated[str, StringConstraints(max_length=120)]
+
+
+class EventLocation(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    facility: ShortText | None = None
+    city: ShortText | None = None
+    region: ShortText | None = None
+    country: ShortText | None = None
+
+
+class CarrierEventPayload(BaseModel):
+    """The webhook body a carrier sends for one tracking event.
+
+    Unknown fields are accepted and kept in the stored payload: carriers add
+    fields without notice and we must not reject their deliveries for it.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    provider: CarrierCode = Field(description="Carrier code", examples=["simcarrier"])
+    event_id: Annotated[
+        str, StringConstraints(min_length=1, max_length=128, pattern=r"^[!-~]+$")
+    ] = Field(description="Carrier-assigned id, unique per event. The idempotency key.")
+    tracking_number: TrackingNumber
+    event_type: EventType
+    occurred_at: AwareDatetime = Field(
+        description="When the event happened, by the carrier's clock. Must carry a UTC offset."
+    )
+    location: EventLocation | None = None
+    description: Annotated[str, StringConstraints(max_length=500)] | None = None
+    estimated_delivery_at: AwareDatetime | None = None
+
+
+class WebhookResult(BaseModel):
+    result: ReceiptResult
+    duplicate: bool
+    receipt_id: uuid.UUID
+    shipment_id: uuid.UUID | None
+    tracking_event_id: uuid.UUID | None
+    shipment_status: ShipmentStatus | None
+
+
+class TrackingEventOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    shipment_id: uuid.UUID
+    provider: str
+    provider_event_id: str
+    event_type: EventType
+    event_at: datetime
+    received_at: datetime
+    location: dict[str, Any] | None
+    description: str | None
+    estimated_delivery_at: datetime | None
+    arrived_out_of_order: bool
+    changed_status: bool
+    status_after: ShipmentStatus
