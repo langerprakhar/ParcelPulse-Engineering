@@ -9,12 +9,18 @@ from pydantic import (
     BaseModel,
     BeforeValidator,
     ConfigDict,
+    EmailStr,
     Field,
     StringConstraints,
 )
 
 from parcelpulse_api.domain.status import EventType, ShipmentStatus
-from parcelpulse_api.models import ReceiptResult
+from parcelpulse_api.models import (
+    NotificationChannel,
+    NotificationStatus,
+    NotificationType,
+    ReceiptResult,
+)
 
 TRACKING_NUMBER_PATTERN = r"^[A-Z0-9]{6,40}$"
 CARRIER_CODE_PATTERN = r"^[a-z0-9][a-z0-9_-]{1,31}$"
@@ -48,6 +54,10 @@ class ShipmentCreate(BaseModel):
 
     tracking_number: TrackingNumber = Field(examples=["SC4F7K2M9Q1X"])
     carrier: CarrierCode = Field(examples=["simcarrier"])
+    notification_email: EmailStr | None = Field(
+        default=None,
+        description="Where to send delivery notifications. Can be set or changed later.",
+    )
 
 
 class ShipmentOut(BaseModel):
@@ -140,3 +150,43 @@ class TrackingEventOut(BaseModel):
     arrived_out_of_order: bool
     changed_status: bool
     status_after: ShipmentStatus
+
+
+# --- Notifications ----------------------------------------------------------
+
+
+class NotificationPreferenceIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    email: EmailStr | None = Field(description="Null switches notifications off.")
+    notify_out_for_delivery: bool = True
+    notify_delivered: bool = True
+    notify_delivery_exception: bool = True
+
+
+class NotificationPreferenceOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    shipment_id: uuid.UUID
+    email: str | None
+    notify_out_for_delivery: bool
+    notify_delivered: bool
+    notify_delivery_exception: bool
+    # Null while the defaults apply because nothing has been saved yet.
+    updated_at: datetime | None
+
+
+class NotificationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    shipment_id: uuid.UUID
+    tracking_event_id: uuid.UUID
+    type: NotificationType
+    channel: NotificationChannel
+    destination: str
+    status: NotificationStatus
+    attempts: int
+    created_at: datetime
+    sent_at: datetime | None
+    last_error: str | None

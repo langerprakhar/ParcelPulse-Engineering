@@ -11,8 +11,10 @@ from sqlalchemy import (
     Enum,
     ForeignKey,
     Index,
+    Integer,
     MetaData,
     String,
+    Text,
     UniqueConstraint,
     Uuid,
 )
@@ -135,4 +137,94 @@ class WebhookReceipt(Base):
     tracking_event_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("tracking_events.id", ondelete="SET NULL")
     )
+    correlation_id: Mapped[str | None] = mapped_column(String(64))
+
+
+class NotificationType(StrEnum):
+    OUT_FOR_DELIVERY = "OUT_FOR_DELIVERY"
+    DELIVERED = "DELIVERED"
+    DELIVERY_EXCEPTION = "DELIVERY_EXCEPTION"
+
+
+class NotificationChannel(StrEnum):
+    EMAIL = "EMAIL"
+
+
+class NotificationStatus(StrEnum):
+    # Written by the API, waiting for the worker.
+    PENDING = "PENDING"
+    # Claimed by a worker; a send is in flight.
+    SENDING = "SENDING"
+    SENT = "SENT"
+    # The last attempt failed; another is scheduled at next_attempt_at.
+    RETRYING = "RETRYING"
+    # Gave up after the maximum number of attempts.
+    FAILED = "FAILED"
+
+
+class NotificationPreference(Base):
+    """Who to notify about a shipment, and for which events."""
+
+    __tablename__ = "notification_preferences"
+    __table_args__ = (
+        UniqueConstraint("shipment_id", name="uq_notification_preferences_shipment_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    shipment_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("shipments.id", ondelete="CASCADE"))
+    # No address means nothing is sent, whatever the flags say.
+    email: Mapped[str | None] = mapped_column(String(320))
+    notify_out_for_delivery: Mapped[bool] = mapped_column(Boolean, default=True)
+    notify_delivered: Mapped[bool] = mapped_column(Boolean, default=True)
+    notify_delivery_exception: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+
+class Notification(Base):
+    """Outbox row: one message owed to one destination because of one tracking event.
+
+    The API inserts rows in the same transaction as the tracking event. The
+    notification worker (parcelpulse-worker) owns every later status change.
+    """
+
+    __tablename__ = "notifications"
+    __table_args__ = (
+        # At most one notification of a type per event and destination, no
+        # matter how often the carrier redelivers the event.
+        UniqueConstraint(
+            "tracking_event_id",
+            "type",
+            "channel",
+            "destination",
+            name="uq_notifications_event_type_channel_destination",
+        ),
+        Index("ix_notifications_shipment_id_created_at", "shipment_id", "created_at"),
+        Index("ix_notifications_status_next_attempt_at", "status", "next_attempt_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    shipment_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("shipments.id", ondelete="CASCADE"))
+    tracking_event_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tracking_events.id", ondelete="CASCADE")
+    )
+    type: Mapped[NotificationType] = mapped_column(_enum(NotificationType, "type_valid"))
+    channel: Mapped[NotificationChannel] = mapped_column(
+        _enum(NotificationChannel, "channel_valid"), default=NotificationChannel.EMAIL
+    )
+    destination: Mapped[str] = mapped_column(String(320))
+    status: Mapped[NotificationStatus] = mapped_column(
+        _enum(NotificationStatus, "status_valid"), default=NotificationStatus.PENDING
+    )
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(Text)
     correlation_id: Mapped[str | None] = mapped_column(String(64))

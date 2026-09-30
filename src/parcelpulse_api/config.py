@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     # Comma-separated carrier codes that shipments may be registered for.
     supported_carriers: Annotated[list[str], NoDecode] = ["simcarrier"]
 
+    # Notification hand-off to parcelpulse-worker (see parcelpulse_api.queue).
+    redis_url: str = "redis://localhost:6379/0"
+    notification_queue_name: str = "notifications"
+    notification_actor_name: str = "deliver_notification"
+
     # Carrier webhook authentication (see parcelpulse_api.security).
     webhook_signature_required: bool = True
     webhook_signing_secret: SecretStr | None = None

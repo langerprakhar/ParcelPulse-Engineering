@@ -18,6 +18,7 @@ from parcelpulse_api.schemas import (
     TrackingEventOut,
     TrackingNumber,
 )
+from parcelpulse_api.services import notifications as notification_service
 from parcelpulse_api.services import shipments as shipment_service
 
 router = APIRouter(tags=["shipments"])
@@ -50,6 +51,10 @@ def create_shipment(
             carrier=body.carrier,
             supported_carriers=request.app.state.settings.supported_carriers,
         )
+        if body.notification_email is not None:
+            notification_service.save_preference(
+                session, shipment.id, email=body.notification_email
+            )
     response.headers["Location"] = f"/shipments/{shipment.id}"
     return ShipmentOut.model_validate(shipment)
 

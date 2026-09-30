@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from parcelpulse_api.config import Settings
 from parcelpulse_api.main import create_app
+from parcelpulse_api.queue import InMemoryNotificationPublisher
 from tests.helpers import TEST_SIGNING_SECRET
 
 # Engines connect lazily, so unit tests can use a URL that is never dialled.
@@ -30,8 +31,13 @@ def settings() -> Settings:
 
 
 @pytest.fixture
-def app(settings: Settings) -> FastAPI:
-    return create_app(settings)
+def publisher() -> InMemoryNotificationPublisher:
+    return InMemoryNotificationPublisher()
+
+
+@pytest.fixture
+def app(settings: Settings, publisher: InMemoryNotificationPublisher) -> FastAPI:
+    return create_app(settings, notification_publisher=publisher)
 
 
 @pytest.fixture

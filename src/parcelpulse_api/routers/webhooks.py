@@ -13,9 +13,10 @@ from parcelpulse_api.correlation import get_correlation_id
 from parcelpulse_api.db import get_session
 from parcelpulse_api.errors import AppError, UnauthorizedError
 from parcelpulse_api.models import utcnow
+from parcelpulse_api.queue import NotificationPublisher
 from parcelpulse_api.schemas import CarrierEventPayload, WebhookResult
 from parcelpulse_api.security import SIGNATURE_HEADER, InvalidSignatureError, verify_signature
-from parcelpulse_api.services.webhooks import ingest_carrier_event
+from parcelpulse_api.services.webhooks import IngestOutcome, ingest_carrier_event
 
 logger = logging.getLogger("parcelpulse.webhooks")
 
@@ -94,6 +95,8 @@ def receive_carrier_event(
             max_future_skew=timedelta(seconds=settings.webhook_max_future_skew_seconds),
         )
 
+    _publish_notifications(request.app.state.notification_publisher, outcome)
+
     logger.info(
         "carrier webhook handled",
         extra={
@@ -108,6 +111,7 @@ def receive_carrier_event(
             "shipment_status": outcome.shipment_status.value if outcome.shipment_status else None,
             "status_changed": outcome.status_changed,
             "arrived_out_of_order": outcome.arrived_out_of_order,
+            "notifications": len(outcome.notification_ids),
         },
     )
     return WebhookResult(
@@ -118,3 +122,20 @@ def receive_carrier_event(
         tracking_event_id=outcome.tracking_event_id,
         shipment_status=outcome.shipment_status,
     )
+
+
+def _publish_notifications(publisher: NotificationPublisher, outcome: IngestOutcome) -> None:
+    """Wake the worker for each outbox row this delivery committed.
+
+    Runs after commit, so the worker can never see a message for a row that does
+    not exist yet. A publish failure does not fail the webhook: the row is
+    already durable as PENDING and the worker's sweeper will find it.
+    """
+    for notification_id in outcome.notification_ids:
+        try:
+            publisher.publish(notification_id, correlation_id=get_correlation_id())
+        except Exception:
+            logger.exception(
+                "could not publish notification; it stays PENDING for the sweeper",
+                extra={"notification_id": str(notification_id)},
+            )

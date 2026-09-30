@@ -2,7 +2,8 @@
 
 One call to :func:`ingest_carrier_event` handles one webhook delivery inside the
 caller's transaction. Everything the delivery causes - the tracking event, the
-shipment state change and the audit receipt - commits together or not at all,
+shipment state change, owed notifications and the audit receipt - commits
+together or not at all,
 which is what makes a carrier retry safe:
 
 * If the first attempt failed before commit, nothing was written and the retry
@@ -31,6 +32,7 @@ from parcelpulse_api.errors import AppError
 from parcelpulse_api.models import ReceiptResult, Shipment, TrackingEvent, WebhookReceipt
 from parcelpulse_api.schemas import CarrierEventPayload
 from parcelpulse_api.security import hash_payload
+from parcelpulse_api.services.notifications import plan_notifications
 
 logger = logging.getLogger("parcelpulse.webhooks")
 
@@ -49,6 +51,8 @@ class IngestOutcome:
     shipment_status: ShipmentStatus | None = None
     status_changed: bool = False
     arrived_out_of_order: bool = False
+    # Outbox rows written by this delivery; the caller publishes them after commit.
+    notification_ids: tuple[uuid.UUID, ...] = ()
 
     @property
     def duplicate(self) -> bool:
@@ -158,6 +162,15 @@ def ingest_carrier_event(
     shipment.last_event_at = state.last_event_at
     shipment.estimated_delivery_at = state.estimated_delivery_at
 
+    notification_ids = plan_notifications(
+        session,
+        shipment_id=shipment.id,
+        tracking_event_id=candidate.id,
+        event_type=payload.event_type,
+        became_current_status=status_changed and state.deciding_event_id == candidate.id,
+        correlation_id=correlation_id,
+    )
+
     receipt_id = record_receipt(
         ReceiptResult.PROCESSED, shipment_id=shipment.id, tracking_event_id=candidate.id
     )
@@ -169,6 +182,7 @@ def ingest_carrier_event(
         shipment_status=state.status,
         status_changed=status_changed,
         arrived_out_of_order=out_of_order,
+        notification_ids=tuple(notification_ids),
     )
 
 
