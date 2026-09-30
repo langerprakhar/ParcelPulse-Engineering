@@ -73,7 +73,7 @@ what the system can handle.
 
 Setup: Intel Core i7-13650HX (20 logical processors), 16 GB RAM, Windows 11,
 Docker Desktop (WSL 2 backend, 8 GB assigned to Docker). API source as
-of commit `ae544e2`: one uvicorn process, default SQLAlchemy connection pool (5
+of commit `8e364c4`: one uvicorn process, default SQLAlchemy connection pool (5
 connections plus 10 overflow), PostgreSQL 17.11 with default settings.
 Generator: `python:3.12-slim` container on the Compose network.
 
