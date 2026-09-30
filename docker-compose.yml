@@ -166,6 +166,43 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # --- Tools (not started by "up"; run on demand) ------------------------------
+  #
+  #   docker compose run --rm smoke
+  #   docker compose run --rm loadtest --shipments 100 --concurrency 16
+  #
+  # They run inside the Compose network, so they need no Python on the host and
+  # their timings are not affected by the host's port forwarding.
+  smoke:
+    profiles: ["tools"]
+    image: python:3.12-slim
+    volumes:
+      - ./tests/smoke:/smoke:ro
+    entrypoint:
+      - python
+      - /smoke/smoke_test.py
+      - --api-url=http://api:8000
+      - --web-url=http://web:3000
+      - --simulator-url=http://carrier-simulator:8100
+      - --mail-url=http://mailpit:8025
+    depends_on:
+      web:
+        condition: service_healthy
+      carrier-simulator:
+        condition: service_healthy
+
+  loadtest:
+    profiles: ["tools"]
+    image: python:3.12-slim
+    volumes:
+      - ./loadtest:/loadtest:ro
+    environment:
+      WEBHOOK_SIGNING_SECRET: *webhook-secret
+    entrypoint: ["python", "/loadtest/webhook_load.py", "--api-url=http://api:8000"]
+    depends_on:
+      api:
+        condition: service_healthy
+
 volumes:
   postgres-data:
   redis-data:
