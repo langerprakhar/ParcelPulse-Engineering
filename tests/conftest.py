@@ -15,6 +15,14 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
+
+# The actors module builds its broker from the environment when it is imported.
+# Force the in-memory broker before anything imports it, so tests can never talk
+# to a real Redis.
+os.environ["QUEUE_BROKER"] = "stub"
+os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://unused:unused@localhost:1/unused")
+os.environ.setdefault("LOG_FORMAT", "console")
+
 from sqlalchemy import Engine, create_engine, insert, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import OperationalError
