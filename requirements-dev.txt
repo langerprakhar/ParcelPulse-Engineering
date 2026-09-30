@@ -1,0 +1,4 @@
+# Tools for the checks at the top level of this repository.
+#   python -m pip install -r requirements-dev.txt
+pytest==9.1.1
+ruff==0.16.9
