@@ -21,3 +21,8 @@ export function simulatorBaseUrl(): string {
 export function devToolsEnabled(): boolean {
   return process.env.ENABLE_DEV_TOOLS === "true";
 }
+
+/** Web UI of the development mail sink, linked from the developer tools. */
+export function mailSinkUrl(): string {
+  return trimTrailingSlash(process.env.MAIL_SINK_URL ?? "http://localhost:8025");
+}
