@@ -12,7 +12,11 @@ from typing import Any
 
 from parcelpulse_api.correlation import get_correlation_id
 
-_RESERVED = set(logging.LogRecord("", 0, "", 0, "", (), None).__dict__) | {"message", "asctime"}
+_RESERVED = set(logging.LogRecord("", 0, "", 0, "", (), None).__dict__) | {
+    "message",
+    "asctime",
+    "color_message",  # uvicorn's ANSI-coloured duplicate of the message
+}
 _SENSITIVE_MARKERS = ("secret", "token", "password", "authorization", "signature", "api_key")
 REDACTED = "[redacted]"
 
@@ -70,5 +74,10 @@ def configure_logging(*, service: str, level: str = "INFO", log_format: str = "j
     root.handlers.clear()
     root.addHandler(handler)
     root.setLevel(level.upper())
+    # Route uvicorn's own messages through the same formatter.
+    for name in ("uvicorn", "uvicorn.error"):
+        uvicorn_logger = logging.getLogger(name)
+        uvicorn_logger.handlers.clear()
+        uvicorn_logger.propagate = True
     # Request logging is done by RequestContextMiddleware; avoid duplicate access lines.
     logging.getLogger("uvicorn.access").disabled = True

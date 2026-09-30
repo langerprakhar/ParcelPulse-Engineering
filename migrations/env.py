@@ -3,9 +3,14 @@
 The database URL comes from, in order of precedence:
 
 1. ``sqlalchemy.url`` set programmatically on the Alembic config (used by tests)
-2. the ``DATABASE_URL`` environment variable / .env file (normal operation)
+2. the ``DATABASE_URL`` environment variable
+3. ``DATABASE_URL`` from the application settings (.env file)
+
+Option 2 means migrations can run with nothing but a database URL configured;
+the rest of the application settings are not required.
 """
 
+import os
 from logging.config import fileConfig
 
 from alembic import context
@@ -25,6 +30,9 @@ def _database_url() -> str:
     configured = config.get_main_option("sqlalchemy.url")
     if configured:
         return configured
+    from_environment = os.environ.get("DATABASE_URL")
+    if from_environment:
+        return from_environment
     from parcelpulse_api.config import get_settings
 
     return get_settings().database_url

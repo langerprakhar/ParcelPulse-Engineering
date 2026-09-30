@@ -60,9 +60,14 @@ def ready(request: Request, response: Response) -> ReadinessResponse:
         try:
             check(request)
             checks[name] = "ok"
-        except Exception:
-            # Details go to the log only; the response must not leak connection strings.
-            logger.warning("readiness check failed", extra={"check": name}, exc_info=True)
+        except Exception as exc:
+            # Details go to the log only; the response must not leak connection
+            # details. Probes run every few seconds, so no traceback either.
+            summary = (str(exc).splitlines() or [""])[0][:200]
+            logger.warning(
+                "readiness check failed",
+                extra={"check": name, "error_type": type(exc).__name__, "error": summary},
+            )
             checks[name] = "error"
 
     is_ready = all(result == "ok" for result in checks.values())
