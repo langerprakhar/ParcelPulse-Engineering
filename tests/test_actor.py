@@ -1,47 +1,15 @@
 """Queue handling: the Dramatiq actor, driven through an in-memory broker and a real worker."""
 
 import uuid
-from collections.abc import Iterator
 from typing import Any
 
 import dramatiq
-import pytest
 from sqlalchemy import Engine
 from sqlalchemy.exc import OperationalError
 
 from parcelpulse_worker import actors, runtime
 from parcelpulse_worker.senders import InMemoryEmailSender, TransientDeliveryError
-from tests.conftest import create_notification, get_notification, make_settings
-
-QUEUE = "notifications"
-
-
-class Harness:
-    def __init__(self, worker: dramatiq.Worker) -> None:
-        self.worker = worker
-
-    def drain(self) -> None:
-        """Block until every message, including delayed retries, has been processed."""
-        actors.broker.join(QUEUE, timeout=20_000, fail_fast=False)
-        self.worker.join()
-
-
-@pytest.fixture
-def harness(engine: Engine, sender: InMemoryEmailSender, database_url: str) -> Iterator[Harness]:
-    settings = make_settings(
-        database_url=database_url,
-        notification_max_attempts=3,
-        # Keep retry delays short enough to run for real.
-        notification_retry_base_seconds=0.05,
-    )
-    runtime.set_runtime(runtime.Runtime(settings=settings, engine=engine, sender=sender))
-    actors.broker.flush_all()
-    worker = dramatiq.Worker(actors.broker, worker_timeout=50, worker_threads=4)
-    worker.start()
-    yield Harness(worker)
-    worker.stop()
-    actors.broker.flush_all()
-    runtime.set_runtime(None)
+from tests.conftest import QUEUE, Harness, create_notification, get_notification, make_settings
 
 
 def test_tests_use_the_in_memory_broker() -> None:

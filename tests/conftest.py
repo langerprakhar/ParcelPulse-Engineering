@@ -14,6 +14,7 @@ from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import dramatiq
 import pytest
 
 # The actors module builds its broker from the environment when it is imported.
@@ -27,6 +28,7 @@ from sqlalchemy import Engine, create_engine, insert, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import OperationalError
 
+from parcelpulse_worker import actors, runtime
 from parcelpulse_worker.config import Settings
 from parcelpulse_worker.db import metadata, notifications, shipments, tracking_events
 from parcelpulse_worker.senders import InMemoryEmailSender
@@ -173,3 +175,36 @@ def get_notification(engine: Engine, notification_id: uuid.UUID) -> Any:
         return connection.execute(
             select(notifications).where(notifications.c.id == notification_id)
         ).one()
+
+
+QUEUE = "notifications"
+
+
+class Harness:
+    """A real Dramatiq worker on the in-memory broker."""
+
+    def __init__(self, worker: dramatiq.Worker) -> None:
+        self.worker = worker
+
+    def drain(self) -> None:
+        """Block until every message, including delayed retries, has been processed."""
+        actors.broker.join(QUEUE, timeout=20_000, fail_fast=False)
+        self.worker.join()
+
+
+@pytest.fixture
+def harness(engine: Engine, sender: InMemoryEmailSender, database_url: str) -> Iterator[Harness]:
+    harness_settings = make_settings(
+        database_url=database_url,
+        notification_max_attempts=3,
+        # Keep retry delays short enough to run for real.
+        notification_retry_base_seconds=0.05,
+    )
+    runtime.set_runtime(runtime.Runtime(settings=harness_settings, engine=engine, sender=sender))
+    actors.broker.flush_all()
+    worker = dramatiq.Worker(actors.broker, worker_timeout=50, worker_threads=4)
+    worker.start()
+    yield Harness(worker)
+    worker.stop()
+    actors.broker.flush_all()
+    runtime.set_runtime(None)
