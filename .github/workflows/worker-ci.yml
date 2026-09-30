@@ -1,23 +1,36 @@
-name: CI
+name: Worker CI
 
+# Runs when the worker or this workflow changes. When it does not run, the
+# worker was not verified by that commit.
 on:
   push:
     branches: [main]
+    paths:
+      - "worker/**"
+      - ".github/workflows/worker-ci.yml"
   pull_request:
+    paths:
+      - "worker/**"
+      - ".github/workflows/worker-ci.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: worker-ci-${{ github.ref }}
   cancel-in-progress: true
 
 env:
   PYTHON_VERSION: "3.12"
 
+defaults:
+  run:
+    working-directory: worker
+
 jobs:
   lint:
-    name: Lint and type check
+    name: Lint (ruff)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,14 +38,25 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
-          cache-dependency-path: constraints.txt
+          cache-dependency-path: worker/constraints.txt
       - run: python -m pip install --constraint constraints.txt -e ".[dev]"
       - name: ruff check
         run: ruff check --output-format=github .
       - name: ruff format
         run: ruff format --check .
-      - name: mypy
-        run: mypy
+
+  typecheck:
+    name: Type check (mypy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: worker/constraints.txt
+      - run: python -m pip install --constraint constraints.txt -e ".[dev]"
+      - run: mypy
 
   # One job per behaviour area. A suite that fails, or that was never run, is
   # visible by name on the commit instead of being folded into a single check.
@@ -77,14 +101,14 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
-          cache-dependency-path: constraints.txt
+          cache-dependency-path: worker/constraints.txt
       - run: python -m pip install --constraint constraints.txt -e ".[dev]"
       - run: pytest ${{ matrix.paths }} --junitxml=reports/${{ matrix.suite }}.xml
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: junit-${{ matrix.suite }}
-          path: reports/${{ matrix.suite }}.xml
+          name: worker-junit-${{ matrix.suite }}
+          path: worker/reports/${{ matrix.suite }}.xml
 
   docker-build:
     name: Docker image build

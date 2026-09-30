@@ -1,19 +1,32 @@
-name: CI
+name: API CI
 
+# Runs when the API or this workflow changes. When it does not run, the API was
+# not verified by that commit; it was verified by the last commit that did.
 on:
   push:
     branches: [main]
+    paths:
+      - "api/**"
+      - ".github/workflows/api-ci.yml"
   pull_request:
+    paths:
+      - "api/**"
+      - ".github/workflows/api-ci.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: api-ci-${{ github.ref }}
   cancel-in-progress: true
 
 env:
   PYTHON_VERSION: "3.12"
+
+defaults:
+  run:
+    working-directory: api
 
 jobs:
   lint:
@@ -25,7 +38,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
-          cache-dependency-path: constraints.txt
+          cache-dependency-path: api/constraints.txt
       - run: python -m pip install --constraint constraints.txt -e ".[dev]"
       - name: ruff check
         run: ruff check --output-format=github .
@@ -41,7 +54,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
-          cache-dependency-path: constraints.txt
+          cache-dependency-path: api/constraints.txt
       - run: python -m pip install --constraint constraints.txt -e ".[dev]"
       - run: mypy
 
@@ -54,14 +67,14 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
-          cache-dependency-path: constraints.txt
+          cache-dependency-path: api/constraints.txt
       - run: python -m pip install --constraint constraints.txt -e ".[dev]"
       - run: pytest tests/unit --junitxml=reports/unit.xml
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: junit-unit
-          path: reports/unit.xml
+          name: api-junit-unit
+          path: api/reports/unit.xml
 
   # One job per behaviour area. A suite that fails, or that was never run, is
   # visible by name on the commit instead of being folded into a single check.
@@ -120,14 +133,14 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
-          cache-dependency-path: constraints.txt
+          cache-dependency-path: api/constraints.txt
       - run: python -m pip install --constraint constraints.txt -e ".[dev]"
       - run: pytest ${{ matrix.path }} --junitxml=reports/${{ matrix.suite }}.xml
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: junit-integration-${{ matrix.suite }}
-          path: reports/${{ matrix.suite }}.xml
+          name: api-junit-integration-${{ matrix.suite }}
+          path: api/reports/${{ matrix.suite }}.xml
 
   migrations:
     name: Migration sanity
@@ -155,7 +168,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
-          cache-dependency-path: constraints.txt
+          cache-dependency-path: api/constraints.txt
       - run: python -m pip install --constraint constraints.txt -e ".[dev]"
       - name: Upgrade an empty database to head
         run: alembic upgrade head
@@ -170,8 +183,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: junit-migrations
-          path: reports/migrations.xml
+          name: api-junit-migrations
+          path: api/reports/migrations.xml
 
   docker-build:
     name: Docker image build
