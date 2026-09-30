@@ -1,0 +1,23 @@
+import { fileURLToPath } from "node:url";
+
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    // Honour the "@/..." path alias from tsconfig.json.
+    tsconfigPaths: true,
+    alias: {
+      // `server-only` throws when imported outside a React Server environment;
+      // tests exercise server modules directly, so swap it for an empty module.
+      "server-only": fileURLToPath(new URL("./src/test/server-only.ts", import.meta.url)),
+    },
+  },
+  test: {
+    environment: "jsdom",
+    setupFiles: ["./vitest.setup.ts"],
+    include: ["src/**/*.test.{ts,tsx}"],
+    restoreMocks: true,
+  },
+});
