@@ -3,6 +3,10 @@
 Web dashboard for ParcelPulse, a package tracking and delivery notification
 platform. Built with Next.js (App Router), React and TypeScript.
 
+This directory is the former `parcelpulse-web` repository, imported with its
+commit history into the ParcelPulse engineering repository. Run the commands
+below from `web/`.
+
 Users look up a parcel by tracking number, add new shipments, follow each
 shipment's timeline and choose which email notifications they get. All data
 comes from `parcelpulse-api`; this application stores nothing.
