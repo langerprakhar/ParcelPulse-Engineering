@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  lint:
+    name: Lint and type check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: constraints.txt
+      - run: python -m pip install --constraint constraints.txt -e ".[dev]"
+      - name: ruff check
+        run: ruff check --output-format=github .
+      - name: ruff format
+        run: ruff format --check .
+      - name: mypy
+        run: mypy
+
+  # One job per behaviour area. A suite that fails, or that was never run, is
+  # visible by name on the commit instead of being folded into a single check.
+  tests:
+    name: Tests (${{ matrix.suite }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: unit
+            paths: tests/test_config.py tests/test_logging.py tests/test_retry.py tests/test_email_content.py
+          - suite: smtp-sender
+            paths: tests/test_smtp_sender.py
+          - suite: delivery-idempotency-and-retry
+            paths: tests/test_delivery.py
+          - suite: queue-handling
+            paths: tests/test_actor.py
+          - suite: sweeper
+            paths: tests/test_sweeper.py
+          - suite: healthcheck
+            paths: tests/test_healthcheck.py
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: parcelpulse
+          POSTGRES_PASSWORD: parcelpulse
+          POSTGRES_DB: parcelpulse_worker_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U parcelpulse -d parcelpulse_worker_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql+psycopg://parcelpulse:parcelpulse@localhost:5432/parcelpulse_worker_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: constraints.txt
+      - run: python -m pip install --constraint constraints.txt -e ".[dev]"
+      - run: pytest ${{ matrix.paths }} --junitxml=reports/${{ matrix.suite }}.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: junit-${{ matrix.suite }}
+          path: reports/${{ matrix.suite }}.xml
+
+  docker-build:
+    name: Docker image build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --tag parcelpulse-worker:ci .
+      - name: Worker entrypoint is installed in the image
+        run: docker run --rm parcelpulse-worker:ci dramatiq --help
