@@ -329,6 +329,12 @@ select {
   min-width: 220px;
 }
 
+.plain-fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
 .checkbox {
   display: flex;
   align-items: flex-start;
