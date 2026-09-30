@@ -14,6 +14,15 @@ $script:Components = [ordered]@{
     infra  = 'infra'
 }
 
+# Compose project names of the throwaway test databases (api\docker-compose.dev.yml,
+# worker\docker-compose.dev.yml). They are passed explicitly with -p: an exported
+# COMPOSE_PROJECT_NAME overrides the name in a Compose file, and would make these
+# commands act on whatever project it names, including the main stack.
+$TestProjects = @{
+    api    = 'parcelpulse-api-dev'
+    worker = 'parcelpulse-worker-dev'
+}
+
 function Get-ComponentPath {
     <# Absolute path of one of the component directories (api, web, worker, infra). #>
     param([Parameter(Mandatory)] [ValidateSet('api', 'web', 'worker', 'infra')] [string]$Name)

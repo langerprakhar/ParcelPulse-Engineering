@@ -154,7 +154,7 @@ else {
         Add-Blocked 'api' 'integration tests' 'Docker daemon not running (needed for the test PostgreSQL and Redis)'
     }
     else {
-        Invoke-Check 'api' 'start test PostgreSQL and Redis' 'docker compose -f docker-compose.dev.yml up -d --wait' $api
+        Invoke-Check 'api' 'start test PostgreSQL and Redis' "docker compose -p $($TestProjects.api) -f docker-compose.dev.yml up -d --wait" $api
         $suites = [ordered]@{
             'shipments'           = 'test_shipments_api.py'
             'webhook ingestion'   = 'test_webhook_ingestion.py'
@@ -189,7 +189,7 @@ else {
         Add-Blocked 'worker' 'tests' 'Docker daemon not running (needed for the test PostgreSQL)'
     }
     else {
-        Invoke-Check 'worker' 'start test PostgreSQL' 'docker compose -f docker-compose.dev.yml up -d --wait' $worker
+        Invoke-Check 'worker' 'start test PostgreSQL' "docker compose -p $($TestProjects.worker) -f docker-compose.dev.yml up -d --wait" $worker
         $suites = [ordered]@{
             'unit (config, logging, retry, email content)' = 'tests/test_config.py tests/test_logging.py tests/test_retry.py tests/test_email_content.py'
             'smtp sender'                                  = 'tests/test_smtp_sender.py'
@@ -349,9 +349,10 @@ if ($Smoke) {
 # --- Clean up and summarise -------------------------------------------------------
 
 if ($hasDocker -and -not $KeepTestDatabases) {
-    foreach ($repo in $api, $worker) {
-        Invoke-Logged -CommandLine 'docker compose -f docker-compose.dev.yml down' -WorkingDirectory $repo `
-            -LogFile (Join-Path $logRoot 'test-databases-down.log') | Out-Null
+    foreach ($name in 'api', 'worker') {
+        Invoke-Logged -CommandLine "docker compose -p $($TestProjects[$name]) -f docker-compose.dev.yml down" `
+            -WorkingDirectory (Get-ComponentPath $name) `
+            -LogFile (Join-Path $logRoot "test-databases-down-$name.log") | Out-Null
     }
 }
 

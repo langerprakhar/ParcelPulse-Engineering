@@ -44,7 +44,7 @@ try {
             $repo = Get-ComponentPath $name
             if (Test-Path -LiteralPath (Join-Path $repo 'docker-compose.dev.yml')) {
                 Write-Host "Stopping the test dependencies of $name ..."
-                $code = Invoke-Streaming -CommandLine 'docker compose -f docker-compose.dev.yml down' -WorkingDirectory $repo
+                $code = Invoke-Streaming -CommandLine "docker compose -p $($TestProjects[$name]) -f docker-compose.dev.yml down" -WorkingDirectory $repo
                 if ($code -ne 0) { $failed = $true }
             }
         }
