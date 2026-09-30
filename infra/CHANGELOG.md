@@ -3,7 +3,8 @@
 All notable changes to parcelpulse-infra. Versions follow semantic versioning;
 while the major version is 0, a minor version may contain breaking changes.
 
-Release notes for ParcelPulse as a whole are in `docs/releases/`.
+Release notes for ParcelPulse as a whole are in `docs/releases/` at the
+repository root.
 
 ## 0.1.0
 

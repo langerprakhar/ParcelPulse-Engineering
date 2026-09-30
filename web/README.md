@@ -12,7 +12,8 @@ shipment's timeline and choose which email notifications they get. All data
 comes from `parcelpulse-api`; this application stores nothing.
 
 See [docs/frontend.md](docs/frontend.md) for the structure, data flow and
-testing approach. System-level documentation lives in `parcelpulse-infra/docs/`.
+testing approach. System-level documentation lives in [`docs/`](../docs/) at
+the repository root.
 
 ## Requirements
 
@@ -28,7 +29,7 @@ npm run dev
 ```
 
 The app is served on <http://localhost:3000>. The quickest way to get an API
-to talk to is the stack in `parcelpulse-infra` (`docker compose up --build`),
+to talk to is the stack in `infra/` (`docker compose up --build`),
 which also serves this dashboard from its Docker image on the same port; stop
 that `web` container, or run `npm run dev -- --port 3001`, to develop against
 the stack.
@@ -53,8 +54,8 @@ npm test            # Vitest
 npm run build       # production build
 ```
 
-CI (`.github/workflows/ci.yml`) runs these as separate jobs, with one test job
-per area, plus the Docker image build.
+CI (`.github/workflows/web-ci.yml` at the repository root) runs these as
+separate jobs, with one test job per area, plus the Docker image build.
 
 ## Docker
 
@@ -71,7 +72,7 @@ the API is reachable and ready.
 
 `main` is always releasable. Work happens on short-lived branches named
 `feature/*`, `fix/*`, `docs/*` or `release/*` and is merged through pull
-requests. See `docs/team-workflow.md` in parcelpulse-infra.
+requests. See [../docs/team-workflow.md](../docs/team-workflow.md).
 
 ## Note on `AGENTS.md`
 

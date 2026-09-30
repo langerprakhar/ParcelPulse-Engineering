@@ -64,8 +64,8 @@ single, low-volume queue.
 - Losing Redis loses no notifications: rows stay `PENDING` and are
   re-published.
 - The worker depends on the API's database schema. A change to the
-  `notifications` table must be made in both repositories; the full-stack
-  smoke test in parcelpulse-infra is what catches a mismatch.
+  `notifications` table must be made in both components; the full-stack
+  smoke test in `infra/` is what catches a mismatch.
 - The queue and actor names are a cross-repository contract.
 - The Dramatiq command-line worker runs in Linux containers. Tests use
   Dramatiq's in-memory `StubBroker` with a real worker thread pool and run on

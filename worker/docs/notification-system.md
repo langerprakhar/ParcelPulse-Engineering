@@ -124,7 +124,7 @@ reason about.
 
 See [adr/ADR-004-notification-queue.md](adr/ADR-004-notification-queue.md).
 
-Contract between the two repositories (the API publishes without importing
+Contract between the two components (the API publishes without importing
 worker code; `tests/test_actor.py` here and
 `tests/integration/test_queue_publisher.py` there each check their side):
 

@@ -110,7 +110,7 @@ Vitest with React Testing Library, run with `npm test`.
 
 Async Server Components (the pages themselves) are not unit tested; Vitest
 does not support them. They are exercised by the full-stack smoke test in
-`parcelpulse-infra`, which requests the rendered pages from a running stack.
+`infra/`, which requests the rendered pages from a running stack.
 There is no browser-driven end-to-end suite in this repository yet.
 
 `server-only` is aliased to an empty module in `vitest.config.mts` so that

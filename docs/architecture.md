@@ -30,20 +30,21 @@ status, and notifies the user at the moments that matter.
 
 ## Components
 
-| Component          | Repository                          | Technology                                   | Responsibility                                                                  |
+| Component          | Directory                           | Technology                                   | Responsibility                                                                  |
 | ------------------ | ----------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------- |
-| Web dashboard      | `parcelpulse-web`                   | Next.js 16, React 19, TypeScript             | Search, shipment list, timeline, notification preferences, developer tools      |
-| API                | `parcelpulse-api`                   | Python 3.12, FastAPI, SQLAlchemy 2, Alembic  | Owns the data and the schema; webhook ingestion; state derivation; notification outbox |
-| Worker             | `parcelpulse-worker`                | Python 3.12, Dramatiq                        | Delivers notifications by email; retries                                        |
-| Sweeper            | `parcelpulse-worker` (same image)   | Python 3.12                                  | Re-publishes lost queue messages; releases abandoned sends                      |
-| Carrier simulator  | `parcelpulse-infra/carrier-simulator` | Python 3.12, FastAPI                       | Development stand-in for a carrier; sends signed webhooks                       |
+| Web dashboard      | `web/`                              | Next.js 16, React 19, TypeScript             | Search, shipment list, timeline, notification preferences, developer tools      |
+| API                | `api/`                              | Python 3.12, FastAPI, SQLAlchemy 2, Alembic  | Owns the data and the schema; webhook ingestion; state derivation; notification outbox |
+| Worker             | `worker/`                           | Python 3.12, Dramatiq                        | Delivers notifications by email; retries                                        |
+| Sweeper            | `worker/` (same image)              | Python 3.12                                  | Re-publishes lost queue messages; releases abandoned sends                      |
+| Carrier simulator  | `infra/carrier-simulator/`          | Python 3.12, FastAPI                       | Development stand-in for a carrier; sends signed webhooks                       |
 | PostgreSQL 17      | image                               |                                              | System of record                                                                |
 | Redis 7            | image                               |                                              | Message broker between API and worker                                           |
 | Mailpit            | image                               |                                              | Development mail sink; nothing leaves the machine                               |
 
-This repository (`parcelpulse-infra`) holds the Compose stack, the carrier
-simulator, the smoke and load tests, the Slack app configuration and the
-system-level documentation.
+`infra/` holds the Compose stack, the carrier simulator, the smoke and load
+tests and the Slack app configuration. `workspace-tools/` holds PowerShell
+utilities for the whole system. System documentation is in `docs/`. See
+[monorepo-layout.md](monorepo-layout.md) for the boundaries.
 
 ## Main flows
 
@@ -81,11 +82,11 @@ API while rendering the page. The page refreshes that data every ten seconds.
 
 | Property                                                     | Mechanism                                                                              | Document                                                         |
 | ------------------------------------------------------------ | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| A redelivered webhook changes nothing                        | Unique `(provider, provider_event_id)`; `INSERT ... ON CONFLICT DO NOTHING`; one transaction | `parcelpulse-api/docs/webhook-idempotency.md`, ADR-002      |
-| A late event cannot move a shipment backwards                | State derived from all events by carrier time; terminal statuses sticky                | `parcelpulse-api/docs/event-processing.md`, ADR-003              |
-| Carrier time and receipt time are both kept                  | `event_at` and `received_at` on every event                                            | `parcelpulse-api/docs/event-processing.md`                       |
-| A notification is sent once                                  | Transactional outbox; atomic claim in the worker; queue messages are only hints        | `parcelpulse-worker/docs/notification-system.md`, ADR-004        |
-| Webhooks are authentic                                       | HMAC-SHA256 over timestamp and body, with a tolerance window                           | `parcelpulse-api/docs/api-spec.md`                               |
+| A redelivered webhook changes nothing                        | Unique `(provider, provider_event_id)`; `INSERT ... ON CONFLICT DO NOTHING`; one transaction | `api/docs/webhook-idempotency.md`, ADR-002      |
+| A late event cannot move a shipment backwards                | State derived from all events by carrier time; terminal statuses sticky                | `api/docs/event-processing.md`, ADR-003              |
+| Carrier time and receipt time are both kept                  | `event_at` and `received_at` on every event                                            | `api/docs/event-processing.md`                       |
+| A notification is sent once                                  | Transactional outbox; atomic claim in the worker; queue messages are only hints        | `worker/docs/notification-system.md`, ADR-004        |
+| Webhooks are authentic                                       | HMAC-SHA256 over timestamp and body, with a tolerance window                           | `api/docs/api-spec.md`                               |
 
 ## Data
 
@@ -104,18 +105,18 @@ Redis holds only queue messages. Losing it loses no notifications: the rows
 stay `PENDING` in PostgreSQL and the sweeper re-publishes them. The carrier
 simulator keeps its state in memory.
 
-## Contracts between repositories
+## Contracts between components
 
 | Contract                  | Producer            | Consumer             | Defined in                                          |
 | ------------------------- | ------------------- | -------------------- | --------------------------------------------------- |
-| REST API                  | API                 | web                  | OpenAPI; `parcelpulse-api/docs/api-spec.md`; mirrored in `parcelpulse-web/src/lib/types.ts` |
-| Carrier webhook           | carrier / simulator | API                  | `parcelpulse-api/docs/api-spec.md`                  |
-| Notification queue message | API                | worker               | `parcelpulse-worker/docs/notification-system.md`    |
-| Database schema           | API (Alembic)       | worker               | API migrations; mirrored in `parcelpulse-worker/src/parcelpulse_worker/db.py` |
+| REST API                  | API                 | web                  | OpenAPI; `api/docs/api-spec.md`; mirrored in `web/src/lib/types.ts` |
+| Carrier webhook           | carrier / simulator | API                  | `api/docs/api-spec.md`                  |
+| Notification queue message | API                | worker               | `worker/docs/notification-system.md`    |
+| Database schema           | API (Alembic)       | worker               | API migrations; mirrored in `worker/src/parcelpulse_worker/db.py` |
 
 The last two are shared without shared code. Each side has tests for its own
-half, and the full-stack smoke test in this repository exercises them
-together.
+half, and the full-stack smoke test (`infra/tests/smoke/`), which also runs in
+CI, exercises them together.
 
 ## Cross-cutting concerns
 
@@ -150,4 +151,6 @@ reach them.
 
 No Kubernetes, service mesh, message bus beyond one Redis queue, search
 engine, or caching layer. See
-[adr/ADR-001-service-architecture.md](adr/ADR-001-service-architecture.md).
+[adr/ADR-001-service-architecture.md](adr/ADR-001-service-architecture.md) and,
+for why everything is in one repository,
+[adr/ADR-005-single-repository.md](adr/ADR-005-single-repository.md).
