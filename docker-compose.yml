@@ -4,7 +4,7 @@
 #
 # Expects the application repositories to be checked out next to this one:
 #
-#   parcelpulse-api/  parcelpulse-worker/  parcelpulse-infra/
+#   parcelpulse-api/  parcelpulse-worker/  parcelpulse-web/  parcelpulse-infra/
 #
 # Defaults work without a .env file; copy .env.example to .env to override them.
 # Every credential below is a local-development default and must not be reused
@@ -144,6 +144,23 @@ services:
       SIMULATOR_URL: http://localhost:8100
     ports:
       - "${SIMULATOR_HOST_PORT:-8100}:8100"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ${WEB_REPO:-../parcelpulse-web}
+    environment:
+      # Read by the Next.js server at request time; the browser never sees these.
+      API_BASE_URL: http://api:8000
+      SIMULATOR_BASE_URL: http://carrier-simulator:8100
+      # /dev drives the carrier simulator; a local-development convenience only.
+      ENABLE_DEV_TOOLS: "true"
+      MAIL_SINK_URL: http://localhost:${MAILPIT_UI_HOST_PORT:-8025}
+    ports:
+      - "${WEB_HOST_PORT:-3000}:3000"
     depends_on:
       api:
         condition: service_healthy
