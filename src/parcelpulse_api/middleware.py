@@ -57,7 +57,9 @@ class RequestContextMiddleware:
             )
             await response(scope, receive, send_with_context)
         finally:
-            duration_ms = round((time.perf_counter() - started) * 1000, 2)
+            duration = time.perf_counter() - started
+            duration_ms = round(duration * 1000, 2)
+            self._record_metrics(scope, status_code, duration)
             level = logging.DEBUG if scope["path"] in QUIET_PATHS else logging.INFO
             logger.log(
                 level,
@@ -69,3 +71,14 @@ class RequestContextMiddleware:
                     "duration_ms": duration_ms,
                 },
             )
+
+    @staticmethod
+    def _record_metrics(scope: Scope, status_code: int, duration: float) -> None:
+        metrics = getattr(scope["app"].state, "metrics", None)
+        if metrics is None:
+            return
+        # Label by route template, never by raw path: ids in paths would create
+        # one time series per shipment.
+        route = getattr(scope.get("route"), "path", "unmatched")
+        metrics.http_requests.labels(scope["method"], route, str(status_code)).inc()
+        metrics.http_request_duration.labels(scope["method"], route).observe(duration)

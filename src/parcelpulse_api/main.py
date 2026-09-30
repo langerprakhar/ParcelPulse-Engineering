@@ -13,9 +13,10 @@ from parcelpulse_api.config import Settings, get_settings
 from parcelpulse_api.db import create_db_engine, create_session_factory
 from parcelpulse_api.errors import install_error_handlers
 from parcelpulse_api.logging_config import configure_logging
+from parcelpulse_api.metrics import Metrics
 from parcelpulse_api.middleware import RequestContextMiddleware
 from parcelpulse_api.queue import DramatiqNotificationPublisher, NotificationPublisher
-from parcelpulse_api.routers import health, notifications, shipments, webhooks
+from parcelpulse_api.routers import dev, health, notifications, shipments, webhooks
 
 
 @asynccontextmanager
@@ -44,6 +45,7 @@ def create_app(
         lifespan=_lifespan,
     )
     app.state.settings = settings
+    app.state.metrics = Metrics()
     app.state.engine = create_db_engine(settings.database_url)
     app.state.session_factory = create_session_factory(app.state.engine)
     app.state.notification_publisher = notification_publisher or DramatiqNotificationPublisher(
@@ -58,4 +60,6 @@ def create_app(
     app.include_router(shipments.router)
     app.include_router(notifications.router)
     app.include_router(webhooks.router)
+    if settings.enable_dev_endpoints and not settings.is_production:
+        app.include_router(dev.router)
     return app

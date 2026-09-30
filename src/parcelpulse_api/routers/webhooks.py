@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from parcelpulse_api.correlation import get_correlation_id
 from parcelpulse_api.db import get_session
 from parcelpulse_api.errors import AppError, UnauthorizedError
+from parcelpulse_api.metrics import Metrics
 from parcelpulse_api.models import utcnow
 from parcelpulse_api.queue import NotificationPublisher
 from parcelpulse_api.schemas import CarrierEventPayload, WebhookResult
@@ -37,6 +38,7 @@ async def authenticated_body(request: Request) -> bytes:
     settings = request.app.state.settings
     body = await request.body()
     if len(body) > settings.webhook_max_body_bytes:
+        request.app.state.metrics.webhook_rejections.labels("payload_too_large").inc()
         raise PayloadTooLargeError(
             "Webhook body is too large",
             details={"max_bytes": settings.webhook_max_body_bytes},
@@ -54,6 +56,7 @@ async def authenticated_body(request: Request) -> bytes:
         except InvalidSignatureError as exc:
             # The reason is logged for operators; callers only learn that it failed.
             logger.warning("rejected carrier webhook", extra={"reason": str(exc)})
+            request.app.state.metrics.webhook_rejections.labels("invalid_signature").inc()
             raise InvalidWebhookSignatureError("Webhook signature verification failed") from None
     return body
 
@@ -95,7 +98,12 @@ def receive_carrier_event(
             max_future_skew=timedelta(seconds=settings.webhook_max_future_skew_seconds),
         )
 
-    _publish_notifications(request.app.state.notification_publisher, outcome)
+    metrics: Metrics = request.app.state.metrics
+    metrics.webhook_deliveries.labels(outcome.result.value).inc()
+    if outcome.arrived_out_of_order:
+        metrics.out_of_order_events.inc()
+    metrics.notifications_planned.inc(len(outcome.notification_ids))
+    _publish_notifications(request.app.state.notification_publisher, outcome, metrics)
 
     logger.info(
         "carrier webhook handled",
@@ -124,7 +132,9 @@ def receive_carrier_event(
     )
 
 
-def _publish_notifications(publisher: NotificationPublisher, outcome: IngestOutcome) -> None:
+def _publish_notifications(
+    publisher: NotificationPublisher, outcome: IngestOutcome, metrics: Metrics
+) -> None:
     """Wake the worker for each outbox row this delivery committed.
 
     Runs after commit, so the worker can never see a message for a row that does
@@ -135,6 +145,7 @@ def _publish_notifications(publisher: NotificationPublisher, outcome: IngestOutc
         try:
             publisher.publish(notification_id, correlation_id=get_correlation_id())
         except Exception:
+            metrics.notification_publish_failures.inc()
             logger.exception(
                 "could not publish notification; it stays PENDING for the sweeper",
                 extra={"notification_id": str(notification_id)},
