@@ -1,7 +1,7 @@
 # Disposable PostgreSQL for running this repository's tests locally.
 # The full ParcelPulse stack lives in the parcelpulse-infra repository.
 #
-#   docker compose -f docker-compose.dev.yml up -d --wait   # PostgreSQL :55433
+#   docker compose -f docker-compose.dev.yml up -d --wait   # PostgreSQL :25433
 #   pytest
 #   docker compose -f docker-compose.dev.yml down
 name: parcelpulse-worker-dev
@@ -14,7 +14,7 @@ services:
       POSTGRES_PASSWORD: parcelpulse
       POSTGRES_DB: parcelpulse_worker_test
     ports:
-      - "${TEST_POSTGRES_PORT:-55433}:5432"
+      - "${TEST_POSTGRES_PORT:-25433}:5432"
     # Test data never needs to survive a restart.
     tmpfs:
       - /var/lib/postgresql/data

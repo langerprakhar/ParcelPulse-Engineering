@@ -66,7 +66,7 @@ mirror of the schema (`parcelpulse_worker/db.py`) and empty them before each
 test.
 
 ```powershell
-docker compose -f docker-compose.dev.yml up -d --wait   # PostgreSQL on localhost:55433
+docker compose -f docker-compose.dev.yml up -d --wait   # PostgreSQL on localhost:25433
 pytest
 docker compose -f docker-compose.dev.yml down
 ```
