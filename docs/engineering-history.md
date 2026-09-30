@@ -25,7 +25,8 @@ confused:
 
 ## Imports
 
-Each import adds a row when its pull request is opened.
+Each import adds a row in the pull request that performs it.
 
-| Component | Directory | Source repository | Source commit | Pull request |
-| --------- | --------- | ----------------- | ------------- | ------------ |
+| Component | Directory | Source repository | Source commit (HEAD of `main`)             | Commits | Issue |
+| --------- | --------- | ----------------- | ------------------------------------------ | ------- | ----- |
+| API       | `api/`    | `parcelpulse-api` | `7f5be87dd822f757f778446f9605d307cb0233d2` | 10      | #1    |

@@ -2,6 +2,10 @@
 
 HTTP API for ParcelPulse, a package tracking and delivery notification platform.
 
+This directory is the former `parcelpulse-api` repository, imported with its
+commit history into the ParcelPulse engineering repository. Run the commands
+below from `api/`.
+
 This service owns the data. It registers shipments, ingests carrier webhook
 events, derives each shipment's current status from its events, decides which
 notifications are owed, and serves all of it to the web dashboard.
