@@ -1,0 +1,29 @@
+# Local configuration (never commit real environment files)
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+.next/
+
+# Test and tool output
+reports/
+coverage/
+logs/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
