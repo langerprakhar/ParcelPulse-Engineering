@@ -1,0 +1,36 @@
+{
+  "channels": [
+    {
+      "name": "general",
+      "purpose": "Announcements and anything that concerns everyone on ParcelPulse."
+    },
+    {
+      "name": "product",
+      "purpose": "Requirements, priorities and scope. What we build and why."
+    },
+    {
+      "name": "engineering",
+      "purpose": "Cross-cutting engineering discussion: architecture, contracts between services, tooling."
+    },
+    {
+      "name": "backend",
+      "purpose": "parcelpulse-api and parcelpulse-worker: ingestion, state, notifications, migrations."
+    },
+    {
+      "name": "frontend",
+      "purpose": "parcelpulse-web: the dashboard, its screens and its API client."
+    },
+    {
+      "name": "incidents",
+      "purpose": "Something is wrong for users. Report here first; follow up in an issue."
+    },
+    {
+      "name": "release",
+      "purpose": "Release preparation, checklist status and release announcements."
+    },
+    {
+      "name": "customer-feedback",
+      "purpose": "What users and pilot customers tell us, verbatim where possible."
+    }
+  ]
+}

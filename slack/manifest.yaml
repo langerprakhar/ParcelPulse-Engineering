@@ -1,0 +1,49 @@
+# Slack app manifest for the ParcelPulse project workspace.
+#
+# Create the app from this file: https://api.slack.com/apps -> Create New App ->
+# From an app manifest. See README.md in this directory for the full setup and
+# for what each permission is used for.
+#
+# The manifest contains no secrets. Tokens are issued by Slack when the app is
+# installed and are supplied to scripts through environment variables only.
+
+display_information:
+  name: ParcelPulse
+  description: Project automation for the ParcelPulse engineering workspace
+  background_color: "#2456d6"
+
+features:
+  bot_user:
+    display_name: ParcelPulse
+    always_online: false
+
+oauth_config:
+  scopes:
+    bot:
+      # Create the project's public channels and set their purpose.
+      - channels:manage
+      # List public channels, so that channel creation is idempotent.
+      - channels:read
+      # Join public channels the bot should be able to post in.
+      - channels:join
+      # Post messages as the bot (for example release announcements).
+      - chat:write
+      # Receive messages from public channels the bot is a member of
+      # (required by the message.channels event below).
+      - channels:history
+      # Receive events when the bot is @-mentioned.
+      - app_mentions:read
+
+settings:
+  # Socket Mode delivers events over an outbound WebSocket, so no public
+  # Request URL is needed. It requires an app-level token (SLACK_APP_TOKEN)
+  # with the connections:write scope.
+  socket_mode_enabled: true
+  event_subscriptions:
+    bot_events:
+      - app_mention
+      - message.channels
+  interactivity:
+    is_enabled: false
+  org_deploy_enabled: false
+  token_rotation_enabled: false
