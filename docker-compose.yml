@@ -2,8 +2,20 @@
 #
 #   docker compose up --build
 #
+# Expects the application repositories to be checked out next to this one:
+#
+#   parcelpulse-api/  parcelpulse-worker/  parcelpulse-infra/
+#
 # Defaults work without a .env file; copy .env.example to .env to override them.
+# Every credential below is a local-development default and must not be reused
+# anywhere else.
 name: parcelpulse
+
+x-database-url: &database-url
+  postgresql+psycopg://${POSTGRES_USER:-parcelpulse}:${POSTGRES_PASSWORD:-parcelpulse}@postgres:5432/${POSTGRES_DB:-parcelpulse}
+
+x-webhook-secret: &webhook-secret
+  ${WEBHOOK_SIGNING_SECRET:-local-development-only-webhook-secret}
 
 services:
   postgres:
@@ -48,6 +60,94 @@ services:
       interval: 3s
       timeout: 3s
       retries: 20
+
+  # One-shot: brings the database schema to the latest Alembic revision, then exits.
+  api-migrate:
+    build:
+      context: ${API_REPO:-../parcelpulse-api}
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      DATABASE_URL: *database-url
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: ${API_REPO:-../parcelpulse-api}
+    environment:
+      ENVIRONMENT: development
+      LOG_FORMAT: json
+      DATABASE_URL: *database-url
+      REDIS_URL: redis://redis:6379/0
+      WEBHOOK_SIGNING_SECRET: *webhook-secret
+      # /dev endpoints are for local work only; the API refuses them in production.
+      ENABLE_DEV_ENDPOINTS: "true"
+    ports:
+      - "${API_HOST_PORT:-8000}:8000"
+    depends_on:
+      api-migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # Readiness, not just liveness: healthy means PostgreSQL and Redis answer.
+      test:
+        - CMD
+        - python
+        - -c
+        - "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=3).status == 200 else 1)"
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ${WORKER_REPO:-../parcelpulse-worker}
+    environment: &worker-environment
+      LOG_FORMAT: json
+      DATABASE_URL: *database-url
+      REDIS_URL: redis://redis:6379/0
+      EMAIL_PROVIDER: smtp
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      WEB_BASE_URL: http://localhost:${WEB_HOST_PORT:-3000}
+    depends_on: &worker-depends-on
+      api-migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      mailpit:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Same build as the worker: re-publishes lost queue messages and releases
+  # notifications abandoned by a worker that died mid-send.
+  worker-sweeper:
+    build:
+      context: ${WORKER_REPO:-../parcelpulse-worker}
+    command: ["python", "-m", "parcelpulse_worker.sweeper"]
+    environment: *worker-environment
+    depends_on: *worker-depends-on
+    restart: unless-stopped
+
+  carrier-simulator:
+    build:
+      context: ./carrier-simulator
+    environment:
+      WEBHOOK_URL: http://api:8000/webhooks/carrier
+      WEBHOOK_SIGNING_SECRET: *webhook-secret
+      PARCELPULSE_API_URL: http://api:8000
+      SIMULATOR_URL: http://localhost:8100
+    ports:
+      - "${SIMULATOR_HOST_PORT:-8100}:8100"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   postgres-data:
