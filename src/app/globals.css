@@ -225,6 +225,11 @@ a:hover {
   font-size: 0.95em;
 }
 
+/* An em-based size is relative to the parent, which would shrink a heading to body size. */
+h1.mono {
+  font-size: 1.5rem;
+}
+
 .breadcrumbs {
   font-size: 0.87rem;
   color: var(--text-muted);
