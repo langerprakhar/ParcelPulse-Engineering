@@ -32,3 +32,4 @@ Each import adds a row in the pull request that performs it.
 | API       | `api/`    | `parcelpulse-api` | `7f5be87dd822f757f778446f9605d307cb0233d2` | 10      | #1    |
 | Web       | `web/`    | `parcelpulse-web` | `8dff66596147376db4d73a680c4c0f4a600f7d07` | 11      | #2    |
 | Worker    | `worker/` | `parcelpulse-worker` | `8d17a8ecf41551bae1b80e568f382f95f2246dce` | 8    | #3    |
+| Infra     | `infra/`  | `parcelpulse-infra` | `e7f30c72c31e9a493da075513c4f5a9e848d00a5` | 11     | #4    |

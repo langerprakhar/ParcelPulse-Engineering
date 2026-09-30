@@ -3,6 +3,11 @@
 Infrastructure and system-level documentation for ParcelPulse, a package
 tracking and delivery notification platform.
 
+This directory is the former `parcelpulse-infra` repository, imported with its
+commit history into the ParcelPulse engineering repository. Run the commands
+below from `infra/`. The Compose file builds the services from `../api`,
+`../worker` and `../web`.
+
 ParcelPulse is built from four repositories:
 
 | Repository           | What it is                                                        |

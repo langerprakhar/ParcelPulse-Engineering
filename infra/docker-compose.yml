@@ -2,9 +2,10 @@
 #
 #   docker compose up --build
 #
-# Expects the application repositories to be checked out next to this one:
+# Builds the services from the component directories next to this one in the
+# ParcelPulse engineering repository:
 #
-#   parcelpulse-api/  parcelpulse-worker/  parcelpulse-web/  parcelpulse-infra/
+#   api/  worker/  web/  infra/
 #
 # Defaults work without a .env file; copy .env.example to .env to override them.
 # Every credential below is a local-development default and must not be reused
@@ -64,7 +65,7 @@ services:
   # One-shot: brings the database schema to the latest Alembic revision, then exits.
   api-migrate:
     build:
-      context: ${API_REPO:-../parcelpulse-api}
+      context: ${API_REPO:-../api}
     command: ["alembic", "upgrade", "head"]
     environment:
       DATABASE_URL: *database-url
@@ -75,7 +76,7 @@ services:
 
   api:
     build:
-      context: ${API_REPO:-../parcelpulse-api}
+      context: ${API_REPO:-../api}
     environment:
       ENVIRONMENT: development
       LOG_FORMAT: json
@@ -106,7 +107,7 @@ services:
 
   worker:
     build:
-      context: ${WORKER_REPO:-../parcelpulse-worker}
+      context: ${WORKER_REPO:-../worker}
     environment: &worker-environment
       LOG_FORMAT: json
       DATABASE_URL: *database-url
@@ -128,7 +129,7 @@ services:
   # notifications abandoned by a worker that died mid-send.
   worker-sweeper:
     build:
-      context: ${WORKER_REPO:-../parcelpulse-worker}
+      context: ${WORKER_REPO:-../worker}
     command: ["python", "-m", "parcelpulse_worker.sweeper"]
     environment: *worker-environment
     depends_on: *worker-depends-on
@@ -151,7 +152,7 @@ services:
 
   web:
     build:
-      context: ${WEB_REPO:-../parcelpulse-web}
+      context: ${WEB_REPO:-../web}
     environment:
       # Read by the Next.js server at request time; the browser never sees these.
       API_BASE_URL: http://api:8000

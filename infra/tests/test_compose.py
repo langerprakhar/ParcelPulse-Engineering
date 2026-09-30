@@ -91,7 +91,7 @@ def test_third_party_images_are_pinned_to_a_version(services: dict[str, Any]) ->
         assert tag != "latest"
 
 
-def test_application_services_are_built_from_the_sibling_repositories(
+def test_application_services_are_built_from_the_component_directories(
     services: dict[str, Any],
 ) -> None:
     contexts = {
@@ -99,11 +99,11 @@ def test_application_services_are_built_from_the_sibling_repositories(
         for name in ("api-migrate", "api", "worker", "worker-sweeper", "web", "carrier-simulator")
     }
     assert contexts == {
-        "api-migrate": "parcelpulse-api",
-        "api": "parcelpulse-api",
-        "worker": "parcelpulse-worker",
-        "worker-sweeper": "parcelpulse-worker",
-        "web": "parcelpulse-web",
+        "api-migrate": "api",
+        "api": "api",
+        "worker": "worker",
+        "worker-sweeper": "worker",
+        "web": "web",
         "carrier-simulator": "carrier-simulator",
     }
 
