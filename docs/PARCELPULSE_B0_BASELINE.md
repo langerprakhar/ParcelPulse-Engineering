@@ -1,9 +1,9 @@
 # PARCELPULSE BASELINE B0
 
-**Recorded:** 2026-09-30 15:56 UTC  
-**Canonical repository:** [langerprakhar/ParcelPulse-Engineering](https://github.com/langerprakhar/ParcelPulse-Engineering)  
-**Baseline commit (`main` at release):** `250ab8bf3197f7fd2874a598e080f7a0ab6a0f38`  
-**Release:** `v0.1.0`  
+**Recorded:** 2026-09-30 15:56 UTC
+**Canonical repository:** [langerprakhar/ParcelPulse-Engineering](https://github.com/langerprakhar/ParcelPulse-Engineering)
+**Baseline commit (`main` at release):** `250ab8bf3197f7fd2874a598e080f7a0ab6a0f38`
+**Release:** `v0.1.0`
 **Release commit:** `250ab8bf3197f7fd2874a598e080f7a0ab6a0f38`
 
 This record was added after the release tag. The B0 documentation commit is later than the release commit and is not part of the `v0.1.0` release artifact. The annotated tag was not moved or recreated.
