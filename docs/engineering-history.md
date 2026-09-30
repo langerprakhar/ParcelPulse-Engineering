@@ -30,3 +30,4 @@ Each import adds a row in the pull request that performs it.
 | Component | Directory | Source repository | Source commit (HEAD of `main`)             | Commits | Issue |
 | --------- | --------- | ----------------- | ------------------------------------------ | ------- | ----- |
 | API       | `api/`    | `parcelpulse-api` | `7f5be87dd822f757f778446f9605d307cb0233d2` | 10      | #1    |
+| Web       | `web/`    | `parcelpulse-web` | `8dff66596147376db4d73a680c4c0f4a600f7d07` | 11      | #2    |
