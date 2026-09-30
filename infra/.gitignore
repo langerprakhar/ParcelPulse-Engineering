@@ -1,0 +1,22 @@
+# Local configuration (never commit real environment files)
+.env
+.env.*
+!.env.example
+
+# Python (carrier simulator, scripts)
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+reports/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
