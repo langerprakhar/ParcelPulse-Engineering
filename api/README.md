@@ -15,11 +15,11 @@ notifications are owed, and serves all of it to the web dashboard.
 | Endpoints, errors, webhook contract | `src/parcelpulse_api/routers/`       | [docs/api-spec.md](docs/api-spec.md)                       |
 | Event ordering and state   | `src/parcelpulse_api/domain/`                 | [docs/event-processing.md](docs/event-processing.md)       |
 | Duplicate webhooks         | `src/parcelpulse_api/services/webhooks.py`    | [docs/webhook-idempotency.md](docs/webhook-idempotency.md) |
-| Notification outbox        | `src/parcelpulse_api/services/notifications.py`, `queue.py` | `docs/notification-system.md` in parcelpulse-worker |
+| Notification outbox        | `src/parcelpulse_api/services/notifications.py`, `queue.py` | [../worker/docs/notification-system.md](../worker/docs/notification-system.md) |
 | Decisions                  |                                               | [ADR-002](docs/adr/ADR-002-webhook-idempotency.md), [ADR-003](docs/adr/ADR-003-event-ordering.md) |
 
 System-level documentation (architecture, local development, release process)
-lives in `parcelpulse-infra/docs/`.
+lives in [`docs/`](../docs/) at the repository root.
 
 ## Requirements
 
@@ -58,7 +58,7 @@ alembic downgrade -1      # undo the latest revision
 
 ## Run
 
-The usual way to run the API is the full stack in `parcelpulse-infra`
+The usual way to run the API is the full stack in `infra/`
 (`docker compose up --build`). To run it directly against that stack's
 PostgreSQL and Redis:
 
@@ -111,8 +111,9 @@ ruff format --check .
 mypy
 ```
 
-CI (`.github/workflows/ci.yml`) runs these, the unit tests, one job per
-integration suite, a migration sanity job and the Docker build.
+CI (`.github/workflows/api-ci.yml` at the repository root) runs these, the unit
+tests, one job per integration suite, a migration sanity job and the Docker
+build.
 
 ## Observability
 
@@ -137,4 +138,4 @@ changing a dependency, regenerate it:
 
 `main` is always releasable. Work happens on short-lived branches named
 `feature/*`, `fix/*`, `docs/*` or `release/*` and is merged through pull
-requests. See `docs/team-workflow.md` in parcelpulse-infra.
+requests. See [../docs/team-workflow.md](../docs/team-workflow.md).

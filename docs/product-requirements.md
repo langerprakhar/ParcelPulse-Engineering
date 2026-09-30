@@ -24,9 +24,9 @@ reached by its tracking number or its link.
 | R5  | A user can view a shipment's timeline, with locations and event times    | Done             |
 | R6  | A user can receive notifications for meaningful events                   | Done (email)     |
 | R7  | The whole system runs locally with one command                           | Done             |
-| R8  | CI validates all four repositories                                       | Workflows written; not yet run on GitHub |
+| R8  | CI validates every component                                             | Done: five workflows at the repository root, including the full-stack smoke test |
 | R9  | Every key behaviour has automated tests                                  | Done             |
-| R10 | Code, documentation, tests and infrastructure can be inspected independently per repository | Done |
+| R10 | Code, documentation, tests and infrastructure can be inspected independently per component | Done |
 
 ### R1 Registering a shipment
 
@@ -97,8 +97,8 @@ There are no numeric performance or availability targets yet.
 
 | Milestone        | Theme                                                                                   |
 | ---------------- | --------------------------------------------------------------------------------------- |
-| v0.1 MVP         | The requirements above, running locally                                                 |
-| v0.2 Reliability | Dead-letter handling, retention, full-stack test in CI, metrics for the worker, performance baseline |
+| v0.1.0 engineering baseline | The requirements above, running locally, integrated into one repository with CI |
+| v0.2 Reliability | Dead-letter handling, retention, the notification crash window, browser tests, performance investigation |
 | v0.3 Beta        | Accounts and access control, a first real carrier, a deployed environment, a pilot      |
 
 The backlog is tracked as GitHub issues against these milestones.

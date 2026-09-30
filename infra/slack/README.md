@@ -27,7 +27,7 @@ behalf.
 | `#customer-feedback` | What users and pilot customers tell us                               |
 
 Slack is for discussion. Decisions and work items are recorded in GitHub (see
-`docs/team-workflow.md`).
+`docs/team-workflow.md` at the repository root).
 
 ## Setup
 
@@ -54,7 +54,7 @@ You need to be allowed to install apps in the workspace.
    token directly: `$env:SLACK_BOT_TOKEN = "<token>"`, and clear your history
    afterwards.) Never put a token in a file that is committed, in a script, or
    in a chat message.
-6. **Create the channels.** From the root of this repository:
+6. **Create the channels.** From `infra/`:
 
    ```powershell
    .\slackootstrap-channels.ps1 -WhatIf    # show what would be done

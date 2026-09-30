@@ -1,6 +1,6 @@
 # Load testing webhook ingestion
 
-`loadtest/webhook_load.py` is a basic load test for `POST /webhooks/carrier`,
+`infra/loadtest/webhook_load.py` is a basic load test for `POST /webhooks/carrier`,
 the endpoint that takes traffic we do not control. This page describes the
 method and records the first observations. It makes no capacity claim.
 
@@ -31,13 +31,13 @@ no notifications are created and the worker is idle.
 
 ## Running it
 
-Inside the Compose network (recommended):
+Inside the Compose network (recommended), from `infra/`:
 
 ```powershell
 docker compose run --rm loadtest --shipments 100 --concurrency 16 --duplicate-ratio 0.25 --shuffle
 ```
 
-From the host:
+From the host, from `infra/`:
 
 ```powershell
 py -3.12 loadtest\webhook_load.py --shipments 100 --concurrency 16 --duplicate-ratio 0.25 --shuffle

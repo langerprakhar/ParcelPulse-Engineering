@@ -13,22 +13,22 @@ has to be decided and built first.
 
 ## What exists
 
-**Container images.** Each service builds an image from its own repository.
+**Container images.** Each service builds an image from its own directory.
 They run as non-root users and take all configuration from environment
 variables.
 
 | Image              | Built from                            | Port | Health                                       |
 | ------------------ | ------------------------------------- | ---- | -------------------------------------------- |
-| API                | `parcelpulse-api/Dockerfile`          | 8000 | `GET /health` (liveness), `GET /ready` (readiness) |
+| API                | `api/Dockerfile`                      | 8000 | `GET /health` (liveness), `GET /ready` (readiness) |
 | Migration job      | same image, `alembic upgrade head`    |      | exits 0 on success                           |
-| Worker             | `parcelpulse-worker/Dockerfile`       |      | `python -m parcelpulse_worker.healthcheck`   |
+| Worker             | `worker/Dockerfile`                   |      | `python -m parcelpulse_worker.healthcheck`   |
 | Sweeper            | same image, `python -m parcelpulse_worker.sweeper` | | same                                 |
-| Web                | `parcelpulse-web/Dockerfile`          | 3000 | `GET /api/health`, `GET /api/ready`          |
+| Web                | `web/Dockerfile`                      | 3000 | `GET /api/health`, `GET /api/ready`          |
 
 The carrier simulator and Mailpit are development tools and must not be
 deployed.
 
-**Configuration.** Every variable is documented in each repository's
+**Configuration.** Every variable is documented in each component's
 `.env.example`.
 
 **Startup order.** Migrations run to completion before the API, worker and
@@ -77,6 +77,6 @@ defaults and must not be reused.
 
 ## Release versus deployment
 
-A release is a tagged, tested set of repository versions
-([release-checklist.md](release-checklist.md)). Releasing v0.1.0 does not
-deploy anything.
+A release is a tag on a validated commit of this repository
+([release-process.md](release-process.md)). Releasing v0.1.0 does not deploy
+anything.

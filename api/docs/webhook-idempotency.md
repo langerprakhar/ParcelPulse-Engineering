@@ -63,7 +63,7 @@ notification row is inserted in the same transaction as the event, and only
 for a newly inserted event, so "event stored once" implies "notification
 created at most once". The queue message is published after commit and is only
 a wake-up call; the worker's claim on the row decides whether anything is sent
-(see `docs/notification-system.md` in parcelpulse-worker).
+(see `worker/docs/notification-system.md`).
 
 ## Payload fingerprint
 

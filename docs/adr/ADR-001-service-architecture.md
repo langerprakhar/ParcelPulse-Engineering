@@ -1,6 +1,8 @@
 # ADR-001: Service architecture
 
-- Status: Accepted
+- Status: Accepted. The repository layout decided here (one repository per
+  service) is superseded by [ADR-005](ADR-005-single-repository.md). The
+  service architecture stands.
 - Date: 2026-09-30
 
 ## Context

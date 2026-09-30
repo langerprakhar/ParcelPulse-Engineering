@@ -60,6 +60,6 @@ same. Rejected as the key; kept as a diagnostic (`payload_hash`).
 - A carrier that does not provide stable event ids cannot be integrated without
   deriving a key for it.
 - The worker must treat queue messages as hints, because the queue is outside
-  the transaction (see ADR-004 in parcelpulse-worker).
+  the transaction (see ADR-004 in `worker/docs/adr/`).
 
 Details and the test matrix: [../webhook-idempotency.md](../webhook-idempotency.md).

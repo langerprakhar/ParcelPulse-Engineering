@@ -21,7 +21,8 @@ optionally scoped to a component: `feat(api): ...`, `fix(worker): ...`,
 
 ## Pull requests
 
-- Link the issue the pull request addresses.
+- Link the issue the pull request addresses, and check after merging that it
+  actually closed.
 - Say what changes, why, and how it was verified. Report the checks that were
   actually run and their actual results.
 - Behaviour changes come with tests. Changes to documented behaviour come with

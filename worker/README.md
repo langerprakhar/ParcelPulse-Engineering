@@ -33,7 +33,7 @@ for why Dramatiq on Redis was chosen.
 - Python 3.12
 - PostgreSQL 17 with the schema from `parcelpulse-api` (a disposable database is provided for tests)
 - Redis 7
-- An SMTP server (locally: the Mailpit sink from `parcelpulse-infra`)
+- An SMTP server (locally: the Mailpit sink in the `infra/` stack)
 
 ## Setup
 
@@ -49,7 +49,7 @@ every one with its default.
 
 ## Run
 
-The usual way to run the worker is the full stack in `parcelpulse-infra`
+The usual way to run the worker is the full stack in `infra/`
 (`docker compose up --build`). To run it directly against that stack's
 PostgreSQL, Redis and Mailpit:
 
