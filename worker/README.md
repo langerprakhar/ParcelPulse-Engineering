@@ -3,6 +3,10 @@
 Asynchronous notification worker for ParcelPulse, a package tracking and
 delivery notification platform.
 
+This directory is the former `parcelpulse-worker` repository, imported with its
+commit history into the ParcelPulse engineering repository. Run the commands
+below from `worker/`.
+
 `parcelpulse-api` decides which notifications are owed and writes them to the
 `notifications` table. This service delivers them by email, exactly once per
 notification under normal operation, with retries and a recovery sweeper.
